@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* === BODY SETTINGS (Particles ke liye) === */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #020617; /* Dark Background */
+  color: white;
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* === TUMHARA CUSTOM ANIMATION === */
+@keyframes moving-gradient {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+.animate-gradient-flow {
+  background-size: 200% auto;
+  animation: moving-gradient 3s linear infinite alternate;
+}
