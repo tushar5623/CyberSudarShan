@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 
-// Middleware
+
 app.use(express.json());
 app.use(cors());
 
