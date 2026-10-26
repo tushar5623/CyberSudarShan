@@ -1,3 +1,7 @@
+import { useDialog } from '../hooks/useDialog';
+import { useTimeout } from '../hooks/useTimeout';
+import { apiRequest } from '../lib/api';
+import { subscribeToApi } from '../lib/apiSubscription';
 import React, { useState, useEffect, useRef } from 'react';
 import { Zap, ChevronRight, ChevronLeft, Clock, X, CheckCircle, AlertCircle, PlusCircle, Newspaper } from 'lucide-react';
 
@@ -6,6 +10,8 @@ const CyberNews = () => {
   const [selectedNews, setSelectedNews] = useState(null);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // 🔥 NAYA: Slider ko left-right scroll karne ke liye Ref
   const sliderRef = useRef(null);
@@ -15,29 +21,40 @@ const CyberNews = () => {
   });
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const scheduleToast = useTimeout();
+  const submitDialog = useDialog(showSubmitForm, () => setShowSubmitForm(false));
+  const detailDialog = useDialog(Boolean(selectedNews), () => setSelectedNews(null));
   
   const showNotification = (message, type = 'success') => {
     setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+    scheduleToast(() => setToast({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const fetchNews = async () => {
-    try {
-      const res = await fetch('https://cyber-sudarshan-backend-1.onrender.com/api/news');
-      const data = await res.json();
-      setNewsList(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Failed to load news.");
-    }
-  };
-
-  useEffect(() => { fetchNews(); }, []);
+  useEffect(() => {
+    const subscription = subscribeToApi('/api/news', {
+      onData: (data, response) => {
+        setNewsLoading(false);
+        if (response.ok && Array.isArray(data)) {
+          setNewsList(data);
+          setLoadError('');
+        } else {
+          setLoadError('Failed to load news. Please try again later.');
+        }
+      },
+      onError: () => {
+        setNewsLoading(false);
+        setLoadError('Failed to load news. Please try again later.');
+        console.error("Failed to load news.");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('https://cyber-sudarshan-backend-1.onrender.com/api/news', {
+      const res = await apiRequest('/api/news', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -49,7 +66,7 @@ const CyberNews = () => {
       } else { 
         showNotification("Action failed.", "error"); 
       }
-    } catch (error) { 
+    } catch {
       showNotification("Network Error!", "error"); 
     }
     setLoading(false);
@@ -106,7 +123,9 @@ const CyberNews = () => {
           </div>
 
           {/* 🔥 AMAZON-STYLE SLIDER CONTAINER 🔥 */}
-          {newsList.length === 0 ? (
+          {loadError ? <p role="alert" className="py-10 text-center text-red-400">{loadError}</p>
+            : newsLoading ? <p role="status" className="py-10 text-center text-slate-400">Loading news...</p>
+            : newsList.length === 0 ? (
             <div className="text-center py-10 text-slate-500 border border-slate-800 rounded-xl bg-slate-900/50 text-sm md:text-base mx-2 md:mx-0">No recent cyber news at the moment.</div>
           ) : (
             <div className="relative group w-full">
@@ -114,6 +133,7 @@ const CyberNews = () => {
               {/* Desktop Left Arrow */}
               <button 
                 onClick={scrollLeft} 
+                aria-label="Previous news"
                 className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-30 bg-slate-900 border border-slate-700 hover:border-yellow-500 hover:text-yellow-500 text-slate-400 p-3 rounded-full shadow-2xl transition-all opacity-0 group-hover:opacity-100 -ml-5 cursor-pointer"
               >
                 <ChevronLeft size={24} />
@@ -135,7 +155,12 @@ const CyberNews = () => {
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent"></div>
                       </div>
                     )}
-                    <div className="p-4 md:p-6 flex flex-col flex-grow cursor-pointer" onClick={() => setSelectedNews(news)}>
+                    <div role="button" tabIndex={0} aria-label={`Read ${news.title}`} onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedNews(news);
+                      }
+                    }} className="p-4 md:p-6 flex flex-col flex-grow cursor-pointer" onClick={() => setSelectedNews(news)}>
                       <div className="flex justify-between items-start mb-3 md:mb-4">
                         <span className={`text-[9px] md:text-xs font-bold px-2.5 md:px-3 py-1 rounded-full border flex items-center gap-1.5 ${news.type.includes('Alert') || news.type.includes('Urgent') ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30'}`}>
                           {news.type}
@@ -155,6 +180,7 @@ const CyberNews = () => {
               {/* Desktop Right Arrow */}
               <button 
                 onClick={scrollRight} 
+                aria-label="Next news"
                 className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-30 bg-slate-900 border border-slate-700 hover:border-yellow-500 hover:text-yellow-500 text-slate-400 p-3 rounded-full shadow-2xl transition-all opacity-0 group-hover:opacity-100 -mr-5 cursor-pointer"
               >
                 <ChevronRight size={24} />
@@ -168,22 +194,22 @@ const CyberNews = () => {
       {/* 📝 SUBMIT FORM MODAL */}
       {showSubmitForm && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-yellow-500/50 w-full max-w-4xl p-5 md:p-10 rounded-2xl shadow-[0_0_40px_rgba(234,179,8,0.2)] relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden">
-            <button onClick={() => setShowSubmitForm(false)} className="absolute top-3 right-3 md:top-4 md:right-4 bg-slate-800 text-slate-400 hover:text-white p-2 rounded-full transition-colors z-50 cursor-pointer"><X size={18} className="md:w-[20px] md:h-[20px]" /></button>
-            <h3 className="text-xl md:text-2xl font-bold text-white mb-1 md:mb-2 flex items-center gap-2 mt-2 md:mt-0"><Newspaper className="text-yellow-500 w-5 h-5 md:w-6 md:h-6"/> Report Incident</h3>
+          <div ref={submitDialog} role="dialog" aria-modal="true" aria-labelledby="news-submit-title" tabIndex={-1} className="bg-slate-900 border border-yellow-500/50 w-full max-w-4xl p-5 md:p-10 rounded-2xl shadow-[0_0_40px_rgba(234,179,8,0.2)] relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden">
+            <button aria-label="Close news submission" onClick={() => setShowSubmitForm(false)} className="absolute top-3 right-3 md:top-4 md:right-4 bg-slate-800 text-slate-400 hover:text-white p-2 rounded-full transition-colors z-50 cursor-pointer"><X size={18} className="md:w-[20px] md:h-[20px]" /></button>
+            <h3 id="news-submit-title" className="text-xl md:text-2xl font-bold text-white mb-1 md:mb-2 flex items-center gap-2 mt-2 md:mt-0"><Newspaper className="text-yellow-500 w-5 h-5 md:w-6 md:h-6"/> Report Incident</h3>
             <p className="text-slate-400 text-xs md:text-sm mb-4 md:mb-6 pb-3 md:pb-4 border-b border-slate-800">Your submission will be reviewed by our team before going live.</p>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-              <input type="text" placeholder="News Title" required className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none text-sm md:text-base" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
-              <select className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none text-sm md:text-base" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
+              <input type="text" aria-label="News title" placeholder="News Title" required className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none text-sm md:text-base" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
+              <select aria-label="News type" className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none text-sm md:text-base" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
                 <option value="News">General News</option>
                 <option value="Critical Alert">Critical Alert</option>
                 <option value="Scam Alert">Scam Alert</option>
                 <option value="Urgent Update">Urgent Update</option>
               </select>
-              <input type="url" placeholder="Image URL (Link to any relevant image)" className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none md:col-span-2 text-sm md:text-base" value={formData.imageUrl} onChange={(e) => setFormData({...formData, imageUrl: e.target.value})} />
-              <textarea rows="2" placeholder="Short Summary (visible on slider)..." required className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none md:col-span-2 resize-y text-sm md:text-base" value={formData.summary} onChange={(e) => setFormData({...formData, summary: e.target.value})}></textarea>
-              <textarea rows="4" placeholder="Full Details..." required className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none md:col-span-2 resize-y text-sm md:text-base" value={formData.fullDetails} onChange={(e) => setFormData({...formData, fullDetails: e.target.value})}></textarea>
+              <input type="url" aria-label="Image URL" placeholder="Image URL (Link to any relevant image)" className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none md:col-span-2 text-sm md:text-base" value={formData.imageUrl} onChange={(e) => setFormData({...formData, imageUrl: e.target.value})} />
+              <textarea rows="2" aria-label="Short summary" placeholder="Short Summary (visible on slider)..." required className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none md:col-span-2 resize-y text-sm md:text-base" value={formData.summary} onChange={(e) => setFormData({...formData, summary: e.target.value})}></textarea>
+              <textarea rows="4" aria-label="Full details" placeholder="Full Details..." required className="w-full bg-slate-950 p-3 rounded-lg border border-slate-700 text-white focus:border-yellow-500 outline-none md:col-span-2 resize-y text-sm md:text-base" value={formData.fullDetails} onChange={(e) => setFormData({...formData, fullDetails: e.target.value})}></textarea>
               <button disabled={loading} className="md:col-span-2 w-full bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-slate-900 font-extrabold py-3 mt-2 md:mt-4 rounded-lg transition-all shadow-lg cursor-pointer text-sm md:text-base">
                 {loading ? "Submitting..." : "Submit for Verification"}
               </button>
@@ -195,8 +221,8 @@ const CyberNews = () => {
       {/* 📖 DETAIL MODAL */}
       {selectedNews && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-3xl rounded-2xl shadow-[0_0_50px_rgba(234,179,8,0.15)] overflow-y-auto max-h-[90vh] relative animate-in zoom-in-95 duration-200 [&::-webkit-scrollbar]:hidden">
-            <button onClick={() => setSelectedNews(null)} className="absolute top-3 right-3 md:top-4 md:right-4 bg-slate-900/80 backdrop-blur text-slate-400 hover:text-white p-2 rounded-full transition-colors z-50 cursor-pointer border border-slate-700"><X size={18} className="md:w-[20px] md:h-[20px]"/></button>
+          <div ref={detailDialog} role="dialog" aria-modal="true" aria-labelledby="news-detail-title" tabIndex={-1} className="bg-slate-900 border border-slate-700 w-full max-w-3xl rounded-2xl shadow-[0_0_50px_rgba(234,179,8,0.15)] overflow-y-auto max-h-[90vh] relative animate-in zoom-in-95 duration-200 [&::-webkit-scrollbar]:hidden">
+            <button aria-label="Close news details" onClick={() => setSelectedNews(null)} className="absolute top-3 right-3 md:top-4 md:right-4 bg-slate-900/80 backdrop-blur text-slate-400 hover:text-white p-2 rounded-full transition-colors z-50 cursor-pointer border border-slate-700"><X size={18} className="md:w-[20px] md:h-[20px]"/></button>
             
             {selectedNews.imageUrl && (
               <div className="w-full h-48 md:h-80 overflow-hidden relative">
@@ -210,7 +236,7 @@ const CyberNews = () => {
                 <span className={`text-[10px] md:text-sm font-bold px-3 py-1 md:px-4 md:py-1.5 rounded-full border ${selectedNews.type.includes('Alert') || selectedNews.type.includes('Urgent') ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30'}`}>{selectedNews.type}</span>
                 <span className="flex items-center gap-1.5 text-slate-400 text-xs md:text-sm font-medium"><Clock size={12} className="md:w-[14px] md:h-[14px]"/> {new Date(selectedNews.date).toLocaleDateString()}</span>
               </div>
-              <h3 className="text-xl md:text-4xl font-extrabold text-white mb-4 md:mb-6 leading-tight pr-6">{selectedNews.title}</h3>
+              <h3 id="news-detail-title" className="text-xl md:text-4xl font-extrabold text-white mb-4 md:mb-6 leading-tight pr-6">{selectedNews.title}</h3>
               <hr className="border-slate-800 mb-4 md:mb-6" />
               <div className="prose prose-invert max-w-none"><p className="text-slate-300 text-sm md:text-lg leading-relaxed whitespace-pre-line">{selectedNews.fullDetails}</p></div>
               <div className="mt-8 md:mt-10 pt-5 md:pt-6 border-t border-slate-800 flex justify-end">

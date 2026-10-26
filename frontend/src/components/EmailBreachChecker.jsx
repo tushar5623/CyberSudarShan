@@ -1,3 +1,4 @@
+import { apiRequest } from '../lib/api';
 import React, { useState } from 'react';
 
 const EmailBreachChecker = () => {
@@ -13,7 +14,7 @@ const EmailBreachChecker = () => {
     setResult(null);
 
     try {
-      const response = await fetch(`https://cyber-sudarshan-backend-1.onrender.com/api/breach/${email}`);
+      const response = await apiRequest(`/api/breach/${email}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -25,7 +26,7 @@ const EmailBreachChecker = () => {
       } else {
         setResult({ error: "Backend error! Please try again." });
       }
-    } catch (error) {
+    } catch {
       setResult({ error: "Network Error! Apna internet check karo." });
     }
     
@@ -50,6 +51,7 @@ const EmailBreachChecker = () => {
         <form onSubmit={checkBreach} className="flex flex-col md:flex-row gap-3 md:gap-4 max-w-2xl mx-auto">
           <input
             type="email"
+            aria-label="Email address to scan"
             placeholder="Enter your email address..."
             required
             value={email}
@@ -69,9 +71,9 @@ const EmailBreachChecker = () => {
 
         {/* RESULTS SECTION */}
         {result && (
-          <div className="mt-6 md:mt-8 max-w-2xl mx-auto animate-in fade-in zoom-in-95 duration-300">
+          <div aria-live="polite" className="mt-6 md:mt-8 max-w-2xl mx-auto animate-in fade-in zoom-in-95 duration-300">
             {result.error && (
-              <div className="p-3 md:p-4 bg-red-900/20 border border-red-500/50 text-red-400 rounded-xl text-center text-sm md:text-base">
+              <div role="alert" className="p-3 md:p-4 bg-red-900/20 border border-red-500/50 text-red-400 rounded-xl text-center text-sm md:text-base">
                 {result.error}
               </div>
             )}

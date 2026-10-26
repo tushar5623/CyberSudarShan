@@ -1,3 +1,4 @@
+import { apiRequest } from '../lib/api';
 import React, { useState } from 'react';
 import { ShieldCheck, Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -38,11 +39,11 @@ const Auth = () => {
     }
 
     const url = isLogin 
-      ? 'https://cyber-sudarshan-backend-1.onrender.com/api/auth/login'
-      : 'https://cyber-sudarshan-backend-1.onrender.com/api/auth/signup';
+      ? '/api/auth/login'
+      : '/api/auth/signup';
 
     try {
-      const res = await fetch(url, {
+      const res = await apiRequest(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -67,7 +68,7 @@ const Auth = () => {
       } else {
         setError(data.message);
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
     }
     setLoading(false);
@@ -93,14 +94,14 @@ const Auth = () => {
 
         {/* ERROR MESSAGE */}
         {error && (
-          <div className="mb-5 bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-2.5 rounded-xl flex items-center gap-3 text-xs md:text-sm font-medium animate-in fade-in">
+          <div role="alert" className="mb-5 bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-2.5 rounded-xl flex items-center gap-3 text-xs md:text-sm font-medium animate-in fade-in">
             <AlertCircle size={16} className="shrink-0" /> {error}
           </div>
         )}
 
         {/* SUCCESS MESSAGE (Account Created) */}
         {success && (
-          <div className="mb-5 bg-green-500/10 border border-green-500/50 text-green-400 px-4 py-2.5 rounded-xl flex items-center gap-3 text-xs md:text-sm font-medium animate-in fade-in">
+          <div role="status" className="mb-5 bg-green-500/10 border border-green-500/50 text-green-400 px-4 py-2.5 rounded-xl flex items-center gap-3 text-xs md:text-sm font-medium animate-in fade-in">
             <CheckCircle2 size={16} className="shrink-0" /> {success}
           </div>
         )}
@@ -109,19 +110,19 @@ const Auth = () => {
           {!isLogin && (
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-              <input type="text" placeholder="Full Name" required className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-4 py-3 rounded-xl focus:border-yellow-500 outline-none transition-all text-sm" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+              <input type="text" aria-label="Full name" placeholder="Full Name" required className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-4 py-3 rounded-xl focus:border-yellow-500 outline-none transition-all text-sm" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
             </div>
           )}
 
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input type="email" placeholder="Email Address" required className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-4 py-3 rounded-xl focus:border-yellow-500 outline-none transition-all text-sm" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+            <input type="email" aria-label="Email address" placeholder="Email Address" required className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-4 py-3 rounded-xl focus:border-yellow-500 outline-none transition-all text-sm" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
           </div>
 
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input type={showPassword ? "text" : "password"} placeholder="Password" required minLength="6" className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-12 py-3 rounded-xl focus:border-yellow-500 outline-none transition-all text-sm" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-yellow-500 transition-colors">
+            <input type={showPassword ? "text" : "password"} aria-label="Password" placeholder="Password" required minLength="6" className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-12 py-3 rounded-xl focus:border-yellow-500 outline-none transition-all text-sm" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+            <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-yellow-500 transition-colors">
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>

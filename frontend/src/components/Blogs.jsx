@@ -1,3 +1,6 @@
+import { useDialog } from '../hooks/useDialog';
+import { useTimeout } from '../hooks/useTimeout';
+import { apiRequest } from '../lib/api';
 import React, { useState, useEffect } from 'react';
 import { User, PenTool, Send, Lock, Unlock, X, ShieldCheck, LogOut, AlertCircle, ArrowLeft, Trash2, Edit3, CheckCircle } from 'lucide-react';
 
@@ -20,20 +23,25 @@ const Blogs = () => {
   const [loginError, setLoginError] = useState(''); 
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const scheduleToast = useTimeout();
+  const loginDialog = useDialog(showLoginModal, () => closeLoginModal());
+  const logoutDialog = useDialog(showLogoutModal, () => setShowLogoutModal(false));
+  const deleteDialog = useDialog(Boolean(blogToDelete), () => setBlogToDelete(null));
 
   const showNotification = (message, type = 'success') => {
     setToast({ show: true, message, type });
-    setTimeout(() => {
+    scheduleToast(() => {
       setToast({ show: false, message: '', type: 'success' });
     }, 3000); 
   };
 
   const fetchBlogs = async () => {
     try {
-      const res = await fetch('https://cyber-sudarshan-backend-1.onrender.com/api/blogs');
+      const res = await apiRequest('/api/blogs');
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
       setBlogs(Array.isArray(data) ? data : []);
+      setError(null);
     } catch (error) {
       console.error("Error fetching blogs:", error);
       setError("Failed to load blogs.");
@@ -48,7 +56,7 @@ const Blogs = () => {
     e.preventDefault();
     setLoginError('');
     try {
-      const res = await fetch('https://cyber-sudarshan-backend-1.onrender.com/api/verify-admin', {
+      const res = await apiRequest('/api/verify-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: inputPassword })
@@ -64,7 +72,7 @@ const Blogs = () => {
       } else {
         setLoginError("Incorrect Password. Access Denied.");
       }
-    } catch (error) {
+    } catch {
       setLoginError("Server Error. Try again later.");
     }
   };
@@ -89,13 +97,13 @@ const Blogs = () => {
     setLoading(true);
 
     const url = editingBlogId 
-      ? `https://cyber-sudarshan-backend-1.onrender.com/api/blogs/${editingBlogId}`
-      : 'https://cyber-sudarshan-backend-1.onrender.com/api/blogs';
+      ? `/api/blogs/${editingBlogId}`
+      : '/api/blogs';
     
     const method = editingBlogId ? 'PUT' : 'POST';
 
     try {
-      const res = await fetch(url, {
+      const res = await apiRequest(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, adminPassword })
@@ -109,7 +117,7 @@ const Blogs = () => {
       } else {
         showNotification("Action failed. Check admin status.", "error");
       }
-    } catch (error) {
+    } catch {
       showNotification("Network Error! Please try again.", "error");
     }
     setLoading(false);
@@ -119,7 +127,7 @@ const Blogs = () => {
     if (!blogToDelete) return;
 
     try {
-      const res = await fetch(`https://cyber-sudarshan-backend-1.onrender.com/api/blogs/${blogToDelete}`, {
+      const res = await apiRequest(`/api/blogs/${blogToDelete}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminPassword })
@@ -133,7 +141,7 @@ const Blogs = () => {
       } else {
         showNotification("Failed to delete blog.", "error");
       }
-    } catch (error) {
+    } catch {
       showNotification("Network Error! Please try again.", "error");
     }
   };
@@ -295,9 +303,10 @@ const Blogs = () => {
 
             {/* Blogs List */}
             <div className={isAdmin ? "md:col-span-2" : "md:col-span-3"}>
+              {error && <p role="alert" className="mb-4 text-red-400 text-sm md:text-base">{error}</p>}
               <div className="grid gap-5 md:gap-6">
                 {blogs && blogs.length === 0 ? (
-                  <div className="text-center py-12 md:py-20 bg-slate-900/50 rounded-2xl border border-slate-800">
+                  !error && <div className="text-center py-12 md:py-20 bg-slate-900/50 rounded-2xl border border-slate-800">
                     <p className="text-slate-500 text-sm md:text-lg">No blogs published yet.</p>
                   </div>
                 ) : (
@@ -360,15 +369,15 @@ const Blogs = () => {
       {/* 1. LOGIN MODAL */}
       {showLoginModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-yellow-500/50 w-full max-w-md p-6 md:p-8 rounded-2xl shadow-[0_0_40px_rgba(234,179,8,0.2)] relative animate-in zoom-in-95 duration-200">
-            <button onClick={closeLoginModal} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors cursor-pointer"><X size={18} className="md:w-5 md:h-5"/></button>
+          <div ref={loginDialog} role="dialog" aria-modal="true" aria-labelledby="admin-dialog-title" tabIndex={-1} className="bg-slate-900 border border-yellow-500/50 w-full max-w-md p-6 md:p-8 rounded-2xl shadow-[0_0_40px_rgba(234,179,8,0.2)] relative animate-in zoom-in-95 duration-200">
+            <button aria-label="Close admin login" onClick={closeLoginModal} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors cursor-pointer"><X size={18} className="md:w-5 md:h-5"/></button>
             <div className="text-center mb-5 md:mb-6 mt-2 md:mt-0">
               <div className="bg-yellow-500/10 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4 border border-yellow-500/30"><ShieldCheck size={28} className="text-yellow-500 md:w-8 md:h-8" /></div>
-              <h3 className="text-xl md:text-2xl font-bold text-white">Admin Access</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-white" id="admin-dialog-title">Admin Access</h3>
               <p className="text-slate-400 text-xs md:text-sm mt-1">Enter your secret key to continue</p>
             </div>
             <form onSubmit={handleLoginSubmit} className="space-y-3 md:space-y-4">
-              <input type="password" placeholder="Enter Secret Key..." className={`w-full bg-slate-950 p-3 md:p-4 rounded-xl border text-white outline-none text-center tracking-widest transition-all text-sm md:text-base ${loginError ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-slate-700 focus:border-yellow-500 focus:shadow-[0_0_10px_rgba(234,179,8,0.3)]'}`} value={inputPassword} onChange={(e) => {setInputPassword(e.target.value); setLoginError('');}} autoFocus />
+              <input type="password" aria-label="Admin secret key" data-dialog-initial-focus placeholder="Enter Secret Key..." className={`w-full bg-slate-950 p-3 md:p-4 rounded-xl border text-white outline-none text-center tracking-widest transition-all text-sm md:text-base ${loginError ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'border-slate-700 focus:border-yellow-500 focus:shadow-[0_0_10px_rgba(234,179,8,0.3)]'}`} value={inputPassword} onChange={(e) => {setInputPassword(e.target.value); setLoginError('');}} />
               {loginError && (<div className="flex items-center justify-center gap-1.5 md:gap-2 text-red-400 text-xs md:text-sm bg-red-500/10 py-2 rounded-lg animate-in fade-in slide-in-from-top-1"><AlertCircle size={14} className="md:w-4 md:h-4"/><span>{loginError}</span></div>)}
               <button className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-slate-900 font-bold md:font-extrabold py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(234,179,8,0.3)] cursor-pointer text-sm md:text-base">Unlock Dashboard</button>
             </form>
@@ -379,9 +388,9 @@ const Blogs = () => {
       {/* 2. LOGOUT MODAL */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-red-500/30 w-full max-w-sm p-5 md:p-6 rounded-2xl shadow-[0_0_40px_rgba(239,68,68,0.15)] relative animate-in zoom-in-95 duration-200 text-center">
+          <div ref={logoutDialog} role="dialog" aria-modal="true" aria-labelledby="logout-dialog-title" tabIndex={-1} className="bg-slate-900 border border-red-500/30 w-full max-w-sm p-5 md:p-6 rounded-2xl shadow-[0_0_40px_rgba(239,68,68,0.15)] relative animate-in zoom-in-95 duration-200 text-center">
             <div className="bg-red-500/10 w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4 border border-red-500/30"><LogOut size={24} className="text-red-400 md:w-7 md:h-7" /></div>
-            <h3 className="text-lg md:text-xl font-bold text-white mb-2">Sign Out?</h3>
+            <h3 className="text-lg md:text-xl font-bold text-white mb-2" id="logout-dialog-title">Sign Out?</h3>
             <p className="text-slate-400 text-xs md:text-sm mb-5 md:mb-6">Are you sure you want to exit admin mode?</p>
             <div className="flex gap-2 md:gap-3">
               <button onClick={() => setShowLogoutModal(false)} className="flex-1 py-2 md:py-2.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors text-sm md:text-base font-medium cursor-pointer">Cancel</button>
@@ -394,11 +403,11 @@ const Blogs = () => {
       {/* 3. DELETE CONFIRMATION MODAL */}
       {blogToDelete && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-red-500/30 w-full max-w-sm p-5 md:p-6 rounded-2xl shadow-[0_0_40px_rgba(239,68,68,0.15)] relative animate-in zoom-in-95 duration-200 text-center">
+          <div ref={deleteDialog} role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" tabIndex={-1} className="bg-slate-900 border border-red-500/30 w-full max-w-sm p-5 md:p-6 rounded-2xl shadow-[0_0_40px_rgba(239,68,68,0.15)] relative animate-in zoom-in-95 duration-200 text-center">
             <div className="bg-red-500/10 w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4 border border-red-500/30">
               <Trash2 size={24} className="text-red-400 md:w-7 md:h-7" />
             </div>
-            <h3 className="text-lg md:text-xl font-bold text-white mb-2">Delete Blog?</h3>
+            <h3 className="text-lg md:text-xl font-bold text-white mb-2" id="delete-dialog-title">Delete Blog?</h3>
             <p className="text-slate-400 text-xs md:text-sm mb-5 md:mb-6 px-2">This action cannot be undone. Are you sure you want to permanently delete this post?</p>
             <div className="flex gap-2 md:gap-3">
               <button onClick={() => setBlogToDelete(null)} className="flex-1 py-2 md:py-2.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors text-sm md:text-base font-medium cursor-pointer">Cancel</button>

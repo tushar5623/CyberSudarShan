@@ -1,3 +1,5 @@
+import { useDialog } from '../hooks/useDialog';
+import { apiRequest } from '../lib/api';
 import React, { useState, useEffect } from 'react';
 import Hero from './hero';
 import VisionMission from './VisionMission';
@@ -15,6 +17,7 @@ const Home = () => {
   const [showEmergency, setShowEmergency] = useState(false);
   const [emergencyData, setEmergencyData] = useState({ name: '', email: '', mobile: '', problem: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const emergencyDialog = useDialog(showEmergency, () => setShowEmergency(false));
 
   useEffect(() => {
     AOS.init({
@@ -35,7 +38,7 @@ const Home = () => {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch('https://cyber-sudarshan-backend-1.onrender.com/api/emergency', {
+      const response = await apiRequest('/api/emergency', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(emergencyData),
@@ -48,7 +51,7 @@ const Home = () => {
       } else {
         alert("Error sending alert. Please try again.");
       }
-    } catch (error) {
+    } catch {
       alert("Network error!");
     }
     setIsSubmitting(false);
@@ -88,10 +91,10 @@ const Home = () => {
       {showEmergency && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[100] p-4 animate-in fade-in duration-200">
           {/* Mobile par padding (p-5) rakhi aur max-height di taaki scroll ho sake agar screen choti ho */}
-          <div className="bg-slate-900 border border-red-500/50 p-5 md:p-8 rounded-2xl shadow-[0_0_40px_rgba(239,68,68,0.2)] w-full max-w-md relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden">
-            <button onClick={() => setShowEmergency(false)} className="absolute top-3 right-3 md:top-4 md:right-4 text-slate-500 hover:text-white bg-slate-800 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer">✖</button>
+          <div ref={emergencyDialog} role="dialog" aria-modal="true" aria-labelledby="emergency-dialog-title" tabIndex={-1} className="bg-slate-900 border border-red-500/50 p-5 md:p-8 rounded-2xl shadow-[0_0_40px_rgba(239,68,68,0.2)] w-full max-w-md relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden">
+            <button aria-label="Close emergency report" onClick={() => setShowEmergency(false)} className="absolute top-3 right-3 md:top-4 md:right-4 text-slate-500 hover:text-white bg-slate-800 hover:bg-red-500/20 w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer">✖</button>
             <div className="text-center mb-4 md:mb-6 mt-2 md:mt-0">
-              <h2 className="text-xl md:text-2xl font-bold text-red-500 flex items-center justify-center gap-2">🚨 Cyber Fraud Alert</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-red-500 flex items-center justify-center gap-2" id="emergency-dialog-title">🚨 Cyber Fraud Alert</h2>
               <p className="text-slate-400 text-xs md:text-sm mt-1 md:mt-2">Fill this form for immediate assistance.</p>
             </div>
             <form onSubmit={handleEmergencySubmit} className="flex flex-col gap-3 md:gap-4">

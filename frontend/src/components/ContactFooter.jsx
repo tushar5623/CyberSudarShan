@@ -1,3 +1,4 @@
+import { apiRequest } from '../lib/api';
 import React, { useState } from 'react';
 
 const ContactFooter = () => {
@@ -18,7 +19,7 @@ const ContactFooter = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('https://cyber-sudarshan-backend-1.onrender.com/api/contact', {
+      const response = await apiRequest('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

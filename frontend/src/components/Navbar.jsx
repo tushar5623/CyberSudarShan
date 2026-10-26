@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, UserCircle, LogOut } from 'lucide-react';
 import logo from '../assets/logo.png';
+import { readStoredUser } from '../lib/storedUser';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation(); 
 
-  const loggedInUser = JSON.parse(localStorage.getItem('cyberUser'));
+  const loggedInUser = readStoredUser();
   const isAuthenticated = !!loggedInUser;
 
   const handleLogout = () => {
@@ -70,7 +71,7 @@ const Navbar = () => {
         </div>
 
         {/* MOBILE MENU BUTTON */}
-        <button className="md:hidden text-white cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+        <button aria-label={isOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={isOpen} className="md:hidden text-white cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
           {isOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>

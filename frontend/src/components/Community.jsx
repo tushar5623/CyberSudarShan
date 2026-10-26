@@ -1,3 +1,8 @@
+import { sendChatMessage, removeOptimisticMessage, restoreFailedDraft } from '../lib/chatSend';
+import { readStoredUser } from '../lib/storedUser';
+import { useTimeout } from '../hooks/useTimeout';
+import { subscribeToApi } from '../lib/apiSubscription';
+import { reconcileChatMessages } from '../lib/chatMessages';
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Users, ShieldAlert, MessageSquare, Terminal, ArrowLeft, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -9,32 +14,15 @@ const Community = () => {
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null); 
+  const feedRef = useRef(null);
+  const active = useRef(false);
+  const pendingMessages = useRef(new Map());
+  const [sendError, setSendError] = useState('');
+  const scheduleScroll = useTimeout();
 
-  const loggedInUser = JSON.parse(localStorage.getItem('cyberUser')); 
+  const loggedInUser = readStoredUser();
   const username = loggedInUser ? loggedInUser.name : '';
   const isAuthenticated = !!loggedInUser; 
-
-  const fetchMessages = async () => {
-    try {
-      const res = await fetch('https://cyber-sudarshan-backend-1.onrender.com/api/chat');
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        // 🔥 ULTRA SMART FETCH: Sirf tabhi update karega jab sach mein aakhiri message naya ho!
-        setMessages(prev => {
-          if (prev.length > 0 && data.length > 0) {
-            // Agar aakhiri message ka ID same hai, toh 100% koi naya message nahi aaya. Bail out!
-            if (prev[prev.length - 1]._id === data[data.length - 1]._id) {
-              return prev;
-            }
-          }
-          if (prev.length === data.length) return prev; 
-          return data;
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load chats.");
-    }
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -42,9 +30,21 @@ const Community = () => {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    fetchMessages();
-    const interval = setInterval(() => fetchMessages(), 3000);
-    return () => clearInterval(interval);
+    active.current = true;
+    const feed = subscribeToApi('/api/chat', {
+      intervalMs: 3000,
+      onData: data => {
+        if (Array.isArray(data)) setMessages(previous => reconcileChatMessages(previous,
+          [...data, ...pendingMessages.current.values()]));
+      },
+      onError: () => console.error("Failed to load chats.")
+    });
+    feedRef.current = feed;
+    return () => {
+      active.current = false;
+      feedRef.current = null;
+      feed.unsubscribe();
+    };
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -63,20 +63,24 @@ const Community = () => {
     e.preventDefault();
     if (!newMessage.trim() || !isAuthenticated) return;
 
-    const tempMsg = { _id: Date.now(), sender: username, message: newMessage, timestamp: new Date() };
+    const tempMsg = { _id: `pending-${crypto.randomUUID()}`, sender: username, message: newMessage, timestamp: new Date() };
+    pendingMessages.current.set(tempMsg._id, tempMsg);
+    setSendError('');
     setMessages(prev => [...prev, tempMsg]);
     setNewMessage('');
     
-    setTimeout(() => scrollToBottom(), 100);
+    scheduleScroll(() => scrollToBottom(), 100);
 
     try {
-      await fetch('https://cyber-sudarshan-backend-1.onrender.com/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: username, message: tempMsg.message })
-      });
-      fetchMessages(); 
-    } catch (error) {
+      await sendChatMessage(username, tempMsg.message);
+      pendingMessages.current.delete(tempMsg._id);
+      if (active.current) feedRef.current?.refresh();
+    } catch {
+      pendingMessages.current.delete(tempMsg._id);
+      if (!active.current) return;
+      setMessages(previous => removeOptimisticMessage(previous, tempMsg._id));
+      setNewMessage(current => restoreFailedDraft(current, tempMsg.message));
+      setSendError('Message failed to send. Please try again.');
       console.error("Message failed to send");
     }
   };
@@ -151,7 +155,7 @@ const Community = () => {
         {/* Chat Header */}
         <div className="flex-shrink-0 h-14 md:h-24 border-b border-slate-800 flex items-center md:items-end pb-0 md:pb-5 px-4 md:px-6 justify-between bg-slate-950/50 shadow-sm relative z-20">
           <div className="flex items-center gap-2 md:gap-3">
-            <Link to="/" className="md:hidden p-1.5 mr-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg cursor-pointer">
+            <Link to="/" aria-label="Back to home" className="md:hidden p-1.5 mr-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg cursor-pointer">
               <ArrowLeft size={18} />
             </Link>
             <span className="relative flex h-2 w-2 md:h-3 md:w-3 md:mb-1">
@@ -199,14 +203,15 @@ const Community = () => {
 
         {/* Chat Input Area */}
         <div className="flex-shrink-0 p-3 md:p-6 pb-4 md:pb-10 bg-slate-900 border-t border-slate-800 relative z-20">
+          {sendError && <p role="alert" className="mb-2 text-sm text-red-400">{sendError}</p>}
           <form onSubmit={handleSendMessage} className="flex gap-2 md:gap-3 max-w-4xl mx-auto">
             <input 
-              type="text" placeholder="Type a message..." required autoComplete="off"
+              type="text" aria-label="Chat message" placeholder="Type a message..." required autoComplete="off"
               className="flex-1 bg-slate-950 border border-slate-700 text-white px-4 py-3 md:px-5 md:py-4 rounded-xl focus:border-yellow-500 outline-none transition-all focus:shadow-[0_0_15px_rgba(234,179,8,0.1)] text-sm md:text-[15px]"
               value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
               autoFocus
             />
-            <button type="submit" className="bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-900 p-3 px-4 md:p-4 md:px-6 rounded-xl hover:from-yellow-400 hover:to-amber-400 transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(234,179,8,0.3)]">
+            <button type="submit" aria-label="Send message" className="bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-900 p-3 px-4 md:p-4 md:px-6 rounded-xl hover:from-yellow-400 hover:to-amber-400 transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(234,179,8,0.3)]">
               <Send size={18} className="md:w-[22px] md:h-[22px] md:-ml-1" />
             </button>
           </form>
