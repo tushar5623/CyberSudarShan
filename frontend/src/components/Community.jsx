@@ -1,3 +1,4 @@
+import { logout } from '../lib/session';
 import { sendChatMessage, removeOptimisticMessage, restoreFailedDraft } from '../lib/chatSend';
 import { readStoredUser } from '../lib/storedUser';
 import { useTimeout } from '../hooks/useTimeout';
@@ -63,7 +64,7 @@ const Community = () => {
     e.preventDefault();
     if (!newMessage.trim() || !isAuthenticated) return;
 
-    const tempMsg = { _id: `pending-${crypto.randomUUID()}`, sender: username, message: newMessage, timestamp: new Date() };
+    const tempMsg = { _id: `pending-${crypto.randomUUID()}`, sender: username, userId: loggedInUser.id, message: newMessage, timestamp: new Date() };
     pendingMessages.current.set(tempMsg._id, tempMsg);
     setSendError('');
     setMessages(prev => [...prev, tempMsg]);
@@ -72,7 +73,7 @@ const Community = () => {
     scheduleScroll(() => scrollToBottom(), 100);
 
     try {
-      await sendChatMessage(username, tempMsg.message);
+      await sendChatMessage(tempMsg.message);
       pendingMessages.current.delete(tempMsg._id);
       if (active.current) feedRef.current?.refresh();
     } catch {
@@ -85,8 +86,12 @@ const Community = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('cyberUser');
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      window.alert('Signed out locally, but the server session could not be revoked.');
+    }
     navigate('/login');
   };
 
@@ -96,7 +101,7 @@ const Community = () => {
         <div className="bg-slate-900/80 border border-red-500/30 p-8 md:p-10 rounded-3xl text-center max-w-md shadow-[0_0_50px_rgba(239,68,68,0.1)] backdrop-blur-md animate-in zoom-in-95 duration-300">
           <ShieldAlert size={60} className="text-red-500 mx-auto mb-6 animate-pulse drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] md:w-[70px] md:h-[70px]" />
           <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-3 tracking-tight">Access Denied</h2>
-          <p className="text-sm md:text-base text-slate-400 mb-8 leading-relaxed">You must be a registered and verified member to access the Global Cyber Lounge.</p>
+          <p className="text-sm md:text-base text-slate-400 mb-8 leading-relaxed">You must be a registered member to access the Global Cyber Lounge.</p>
           <div className="flex flex-col gap-3">
             <button onClick={() => navigate('/login')} className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 text-slate-900 font-extrabold py-3 md:py-4 rounded-xl hover:scale-105 transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] cursor-pointer text-sm md:text-base">
               Secure Login / Sign Up
@@ -185,7 +190,7 @@ const Community = () => {
             </div>
           ) : (
             messages.map((msg, index) => {
-              const isMe = msg.sender === username;
+              const isMe = Boolean(msg.userId) && msg.userId === loggedInUser.id;
               return (
                 <div key={msg._id || index} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 duration-300`}>
                   <span className="text-[9px] md:text-[11px] text-slate-500 mb-1 md:mb-1.5 mx-1 font-medium tracking-wide">

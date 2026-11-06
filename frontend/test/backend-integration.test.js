@@ -10,12 +10,18 @@ const backendRequire = createRequire(new URL('../../backend/server.js', import.m
 const { createApp } = backendRequire('./src/app');
 const mongoose = backendRequire('mongoose');
 const bcrypt = backendRequire('bcryptjs');
+const { queryRows } = backendRequire('./test/helpers/query');
+const { mockSessions, authorization } = backendRequire('./test/helpers/session');
 const frontendOrigin = 'http://127.0.0.1:5173';
 const adminPassword = 'integration-only-not-a-real-secret';
 
 // Actual Vite-transformed frontend transport -> actual loopback Express HTTP.
 // Only persistence and the external provider boundary are faked. No dotenv/DB.
 async function fixture(t, env = {}) {
+  mockSessions(t);
+  const previousWindow = globalThis.window;
+  globalThis.window = { sessionStorage: { getItem: () => JSON.stringify({ token: authorization.slice(7) }) } };
+  t.after(() => { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; });
   const forbidden = () => { throw new Error('Database access forbidden in transport integration test'); };
   t.mock.method(mongoose, 'connect', forbidden);
   t.mock.method(mongoose, 'createConnection', forbidden);
@@ -38,6 +44,7 @@ async function fixture(t, env = {}) {
       const [key, direction] = Object.entries(order)[0];
       const result = rows.filter(row => Object.entries(query).every(([key, value]) => row[key] === value))
         .sort((a, b) => (new Date(a[key]) - new Date(b[key])) * direction);
+      if (name !== 'Chat') return queryRows(result);
       return Object.assign(Promise.resolve(result), { limit: size => Promise.resolve(result.slice(0, size)) });
     } }));
     t.mock.method(Model, 'findByIdAndUpdate', async (id, fields) => {
@@ -59,7 +66,7 @@ async function fixture(t, env = {}) {
   t.mock.method(globalThis, 'fetch', (url, options) => {
     const target = new URL(url);
     if (target.origin === origin) return nativeFetch(url, options);
-    if (target.href === 'https://api.xposedornot.com/v1/check-email/reader@example.invalid') {
+    if (target.href === 'https://api.xposedornot.com/v1/check-email/reader%40example.invalid') {
       provider.calls++;
       if (provider.networkFailure) return Promise.reject(new Error('Synthetic provider failure'));
       return Promise.resolve(new Response(JSON.stringify(provider.body), { status: provider.status }));
@@ -129,13 +136,13 @@ test('integration: signup, hashed-password login and existing account errors', a
   assert.equal(await bcrypt.compare(input.password, records.User[0].password), true);
   assert.notEqual(records.User[0].password, input.password);
   await expectJson(await request('/api/auth/login', 'POST', input), 200,
-    { success: true, message: 'Login successful!', user });
+    { success: true, message: 'Login successful!', user: { ...user, id: String(records.User[0]._id) } });
   await expectJson(await request('/api/auth/signup', 'POST', input), 400,
     { success: false, message: 'Email already registered!' });
-  await expectJson(await request('/api/auth/login', 'POST', { ...input, password: 'incorrect' }), 400,
+  await expectJson(await request('/api/auth/login', 'POST', { ...input, password: 'incorrect' }), 401,
     { success: false, message: 'Invalid credentials!' });
-  await expectJson(await request('/api/auth/login', 'POST', { ...input, email: 'absent@example.invalid' }), 404,
-    { success: false, message: 'User not found!' });
+  await expectJson(await request('/api/auth/login', 'POST', { ...input, email: 'absent@example.invalid' }), 401,
+    { success: false, message: 'Invalid credentials!' });
 });
 
 test('integration: blogs retain CRUD authorization, array reads and HTTP failure metadata', async t => {
@@ -189,12 +196,12 @@ test('integration: news stays pending, rejects unauthorized publication and supp
 
 test('integration: actual chat-send helper accepts saves, rejects empty messages and rate limits', async t => {
   const { request, chat, records } = await fixture(t, { CHAT_RATE_LIMIT_MAX: '2' });
-  await chat.sendChatMessage('Unverified display name', 'Test message');
+  await chat.sendChatMessage('Test message');
   assert.equal(records.Chat.length, 1);
   const messages = await (await request('/api/chat')).json();
   assert.equal(messages[0].message, 'Test message');
-  assert.equal(messages[0].sender, 'Unverified display name');
-  await assert.rejects(chat.sendChatMessage('Reader', ''), /Message failed to send/);
+  assert.equal(messages[0].sender, 'Reader');
+  await assert.rejects(chat.sendChatMessage(''), /Message failed to send/);
   const limited = await request('/api/chat', 'POST', { sender: 'Reader', message: 'over budget' });
   assert.equal(limited.status, 429);
   assert.ok(Number(limited.headers.get('retry-after')) > 0);

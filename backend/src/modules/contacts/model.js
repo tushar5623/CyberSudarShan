@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const contactSchema = new mongoose.Schema({
-  name: String,
-  email: String,
-  message: String,
+  name: { type: String, required: true, maxlength: 100 },
+  email: { type: String, required: true, maxlength: 254 },
+  message: { type: String, required: true, maxlength: 5000 },
   date: { type: Date, default: Date.now }
 });
 

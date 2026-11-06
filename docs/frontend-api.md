@@ -1,5 +1,10 @@
 # Frontend API transport (Step 5)
 
+> **Historical record:** The transport now defaults to loopback in development,
+> requires explicit HTTPS configuration for production builds, applies a request
+> deadline, and supports tab-scoped sessions. See the
+> [current quality review](quality-review.md).
+
 This Step 5 record is historical. Tasks 1/2 subsequently corrected polling,
 optimistic send failures and news error/loading feedback; see
 [Task 2](frontend-task2.md). [Task 3](integration-readiness.md) records actual

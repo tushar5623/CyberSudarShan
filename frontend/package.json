@@ -7,13 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",
     "aos": "^2.3.4",
+    "cyber-sudarshan-project": "file:..",
     "lucide-react": "^0.574.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -32,5 +34,8 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "vite": "^7.3.1"
+  },
+  "engines": {
+    "node": ">=22.19.0 <23"
   }
 }

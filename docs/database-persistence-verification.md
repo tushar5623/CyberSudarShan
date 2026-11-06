@@ -1,5 +1,10 @@
 # Task 4: dedicated database and persistence verification
 
+> **Historical record:** The real-database verification remains outstanding, but
+> sessions, indexes, validation, pagination, and chat ownership have changed since
+> this report. Follow the [current review](quality-review.md) and current models when
+> preparing the isolated database run.
+
 ## Outcome (2026-10-25)
 
 **Genuine MongoDB persistence verification did not run.** No isolated disposable

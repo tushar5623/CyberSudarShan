@@ -1,3 +1,4 @@
+import { saveSession } from '../lib/session';
 import { apiRequest } from '../lib/api';
 import React, { useState } from 'react';
 import { ShieldCheck, Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
@@ -32,8 +33,8 @@ const Auth = () => {
     setError('');
     setSuccess('');
 
-    if (!isLogin && strength < 3) {
-      setError("Please create a stronger password (mix of letters, numbers & symbols).");
+    if (!isLogin && (formData.password.length < 8 || new TextEncoder().encode(formData.password).length > 72)) {
+      setError("Use at least 8 characters and no more than 72 UTF-8 bytes.");
       setLoading(false);
       return;
     }
@@ -62,7 +63,7 @@ const Auth = () => {
           // ==========================================
           // 🆕 LOGIN SUCCESS FLOW
           // ==========================================
-          localStorage.setItem('cyberUser', JSON.stringify(data.user));
+          saveSession(data.user, res.headers.get('X-Session-Token'));
           navigate('/'); // Community nahi, ab seedha Home Page par jayega!
         }
       } else {
@@ -121,7 +122,7 @@ const Auth = () => {
 
           <div className="relative">
             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input type={showPassword ? "text" : "password"} aria-label="Password" placeholder="Password" required minLength="6" className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-12 py-3 rounded-xl focus:border-yellow-500 outline-none transition-all text-sm" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+            <input type={showPassword ? "text" : "password"} aria-label="Password" placeholder="Password" required minLength={isLogin ? 1 : 8} className="w-full bg-slate-950 border border-slate-800 text-white pl-12 pr-12 py-3 rounded-xl focus:border-yellow-500 outline-none transition-all text-sm" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
             <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-yellow-500 transition-colors">
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>

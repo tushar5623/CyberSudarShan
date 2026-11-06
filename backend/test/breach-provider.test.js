@@ -19,15 +19,19 @@ function fixture(t, respond) {
     signal = options.signal;
     assert.equal(signal.aborted, false);
     assert.equal(options.redirect, 'error');
-    signal.addEventListener('abort', () => { aborts++; });
+    signal.addEventListener('abort', () => {
+      aborts++;
+    });
     return respond(url, options);
   });
   return {
     lookup: () => lookupBreaches('reader+tag@example.invalid'),
     verifyCleanup() {
       assert.equal(upstream.mock.callCount(), 1);
-      assert.equal(upstream.mock.calls[0].arguments[0],
-        'https://api.xposedornot.com/v1/check-email/reader+tag@example.invalid');
+      assert.equal(
+        upstream.mock.calls[0].arguments[0],
+        'https://api.xposedornot.com/v1/check-email/reader%2Btag%40example.invalid'
+      );
       assert.equal(schedule.mock.callCount(), 1);
       assert.equal(schedule.mock.calls[0].arguments[1], 10000);
       assert.equal(unref.mock.callCount(), 1);
@@ -41,19 +45,29 @@ function fixture(t, respond) {
   };
 }
 
-test('provider: valid responses flatten one level and preserve empty results and breach names', async t => {
+test('provider: valid responses flatten one level and preserve empty results and breach names', async (t) => {
   for (const [breaches, expected] of [
-    [[], []], [[[]], []], [[['BreachOne'], [' BreachTwo ']], ['BreachOne', ' BreachTwo ']],
-    [['BreachOne', ['BreachTwo']], ['BreachOne', 'BreachTwo']]
+    [[], []],
+    [[[]], []],
+    [
+      [['BreachOne'], [' BreachTwo ']],
+      ['BreachOne', ' BreachTwo ']
+    ],
+    [
+      ['BreachOne', ['BreachTwo']],
+      ['BreachOne', 'BreachTwo']
+    ]
   ]) {
-    const subject = fixture(t, async () => ({ status: 200,
-      json: async () => ({ breaches, status: 'success', email: 'reader+tag@example.invalid' }) }));
+    const subject = fixture(t, async () => ({
+      status: 200,
+      json: async () => ({ breaches, status: 'success', email: 'reader+tag@example.invalid' })
+    }));
     assert.deepEqual(await subject.lookup(), { ok: true, breaches: expected });
     subject.verifyCleanup();
   }
 });
 
-test('provider: HTTP errors and redirects are unavailable without consuming upstream bodies', async t => {
+test('provider: HTTP errors and redirects are unavailable without consuming upstream bodies', async (t) => {
   for (const status of [301, 400, 404, 429, 500, 503]) {
     const parse = t.mock.fn(async () => ({ breaches: [], error: 'Sensitive upstream body' }));
     const subject = fixture(t, async () => ({ status, json: parse }));
@@ -63,45 +77,71 @@ test('provider: HTTP errors and redirects are unavailable without consuming upst
   }
 });
 
-test('provider: invalid or contradictory data never yields a successful empty result', async t => {
-  for (const data of [null, [], 'unexpected', 42, {}, { breaches: null }, { breaches: 'BreachOne' },
-    { breaches: [null] }, { breaches: [42] }, { breaches: [{}] }, { breaches: [''] },
-    { breaches: ['  '] }, { breaches: [[['TooDeep']]] },
-    { breaches: [], Error: 'Not found', email: null }, { breaches: [], error: 'Sensitive data' },
-    { breaches: [], errors: [] }, { breaches: [], status: 'error' }]) {
+test('provider: invalid or contradictory data never yields a successful empty result', async (t) => {
+  for (const data of [
+    null,
+    [],
+    'unexpected',
+    42,
+    {},
+    { breaches: null },
+    { breaches: 'BreachOne' },
+    { breaches: [null] },
+    { breaches: [42] },
+    { breaches: [{}] },
+    { breaches: [''] },
+    { breaches: ['  '] },
+    { breaches: [[['TooDeep']]] },
+    { breaches: [], Error: 'Not found', email: null },
+    { breaches: [], error: 'Sensitive data' },
+    { breaches: [], errors: [] },
+    { breaches: [], status: 'error' }
+  ]) {
     const subject = fixture(t, async () => ({ status: 200, json: async () => data }));
     assert.deepEqual(await subject.lookup(), { ok: false, reason: 'unavailable' });
     subject.verifyCleanup();
   }
 });
 
-test('provider: malformed JSON is unavailable and its exception details are discarded', async t => {
-  const subject = fixture(t, async () => ({ status: 200,
-    json: async () => { throw new SyntaxError('Sensitive JSON content'); } }));
+test('provider: malformed JSON is unavailable and its exception details are discarded', async (t) => {
+  const subject = fixture(t, async () => ({
+    status: 200,
+    json: async () => {
+      throw new SyntaxError('Sensitive JSON content');
+    }
+  }));
   assert.deepEqual(await subject.lookup(), { ok: false, reason: 'unavailable' });
   subject.verifyCleanup();
 });
 
-test('provider: network failures are unavailable and discard exception metadata', async t => {
+test('provider: network failures are unavailable and discard exception metadata', async (t) => {
   const failure = Object.assign(new TypeError('Sensitive network details'), {
-    headers: { authorization: 'synthetic-private-value' }, cause: 'Sensitive upstream cause'
+    headers: { authorization: 'synthetic-private-value' },
+    cause: 'Sensitive upstream cause'
   });
-  const subject = fixture(t, async () => { throw failure; });
+  const subject = fixture(t, async () => {
+    throw failure;
+  });
   assert.deepEqual(await subject.lookup(), { ok: false, reason: 'unavailable' });
   subject.verifyCleanup();
 });
 
 for (const phase of ['request', 'body']) {
-  test(`provider: ${phase} timeout aborts at 10 seconds and cleans resources`, async t => {
+  test(`provider: ${phase} timeout aborts at 10 seconds and cleans resources`, async (t) => {
     t.mock.timers.enable({ apis: ['setTimeout'] });
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
     let reached;
-    const waiting = new Promise(resolve => { reached = resolve; });
-    let signal;
-    const waitForAbort = () => new Promise((resolve, reject) => {
-      signal.addEventListener('abort', () => reject(new Error('Sensitive timeout detail')), { once: true });
-      reached();
+    const waiting = new Promise((resolve) => {
+      reached = resolve;
     });
+    let signal;
+    const waitForAbort = () =>
+      new Promise((resolve, reject) => {
+        signal.addEventListener('abort', () => reject(new Error('Sensitive timeout detail')), {
+          once: true
+        });
+        reached();
+      });
     const subject = fixture(t, async (url, options) => {
       signal = options.signal;
       return phase === 'request' ? waitForAbort() : { status: 200, json: waitForAbort };
@@ -115,21 +155,26 @@ for (const phase of ['request', 'body']) {
     subject.verifyCleanup();
   });
 
-  test(`provider: a valid-looking late ${phase} result is rejected after timeout`, async t => {
+  test(`provider: a valid-looking late ${phase} result is rejected after timeout`, async (t) => {
     t.mock.timers.enable({ apis: ['setTimeout'] });
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
     let reached;
-    const waiting = new Promise(resolve => { reached = resolve; });
-    let signal;
-    const waitForAbort = value => new Promise(resolve => {
-      signal.addEventListener('abort', () => resolve(value), { once: true });
-      reached();
+    const waiting = new Promise((resolve) => {
+      reached = resolve;
     });
-    const parse = t.mock.fn(async () => phase === 'request' ? { breaches: [] }
-      : waitForAbort({ breaches: [] }));
+    let signal;
+    const waitForAbort = (value) =>
+      new Promise((resolve) => {
+        signal.addEventListener('abort', () => resolve(value), { once: true });
+        reached();
+      });
+    const parse = t.mock.fn(async () =>
+      phase === 'request' ? { breaches: [] } : waitForAbort({ breaches: [] })
+    );
     const subject = fixture(t, async (url, options) => {
       signal = options.signal;
-      return phase === 'request' ? waitForAbort({ status: 200, json: parse })
+      return phase === 'request'
+        ? waitForAbort({ status: 200, json: parse })
         : { status: 200, json: parse };
     });
     const pending = subject.lookup();

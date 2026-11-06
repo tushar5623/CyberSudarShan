@@ -25,25 +25,25 @@ test('malformed or unavailable storage recovers without deleting any record', ()
 
 test('chat sends the existing payload once and accepts its 201 response', async t => {
   const fetch = t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 201 }));
-  await sendChatMessage('Member', 'hello');
+  await sendChatMessage('hello');
   assert.equal(fetch.mock.callCount(), 1);
   const [url, options] = fetch.mock.calls[0].arguments;
   assert.equal(new URL(url).pathname, '/api/chat');
   assert.equal(options.method, 'POST');
   assert.deepEqual(options.headers, { 'Content-Type': 'application/json' });
-  assert.deepEqual(JSON.parse(options.body), { sender: 'Member', message: 'hello' });
+  assert.deepEqual(JSON.parse(options.body), { message: 'hello' });
 });
 
 for (const status of [400, 429, 500]) test(`chat rejects HTTP ${status} without leaking upstream details or retrying`, async t => {
   const fetch = t.mock.method(globalThis, 'fetch', async () => new Response('private upstream detail', { status }));
-  await assert.rejects(sendChatMessage('Member', 'draft'), { message: 'Message failed to send. Please try again.' });
+  await assert.rejects(sendChatMessage('draft'), { message: 'Message failed to send. Please try again.' });
   assert.equal(fetch.mock.callCount(), 1);
 });
 
 test('chat network failures reject without retrying', async t => {
   const failure = new TypeError('Failed to fetch');
   const fetch = t.mock.method(globalThis, 'fetch', async () => { throw failure; });
-  await assert.rejects(sendChatMessage('Member', 'draft'), error => error === failure);
+  await assert.rejects(sendChatMessage('draft'), error => error === failure);
   assert.equal(fetch.mock.callCount(), 1);
 });
 

@@ -2,11 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { API_BASE_URL, resolveApiBaseUrl, apiUrl, apiRequest } from '../src/lib/api.js';
 
-test('base URL retains the deployed backend when no override is set in either mode', () => {
-  const expected = 'https://cyber-sudarshan-backend-1.onrender.com';
+test('development defaults to loopback and production requires explicit configuration', () => {
+  const expected = 'http://127.0.0.1:5000';
   assert.equal(API_BASE_URL, expected);
   assert.equal(resolveApiBaseUrl(undefined), expected);
-  assert.equal(resolveApiBaseUrl(undefined, { production: true }), expected);
+  assert.throws(() => resolveApiBaseUrl(undefined, { production: true }), /VITE_API_BASE_URL/);
 });
 
 test('explicit origins normalize trailing slash and allow local HTTP only outside production', () => {
@@ -38,7 +38,8 @@ test('JSON GET responses retain status, headers and data with one lazy parse', a
   const headers = new Headers({ 'content-type': 'application/json' });
   const fetch = t.mock.method(globalThis, 'fetch', async () => ({ ok: true, status: 200, headers, text }));
   const result = await apiRequest('/api/blogs');
-  assert.deepEqual(fetch.mock.calls[0].arguments, [`${API_BASE_URL}/api/blogs`, undefined]);
+  assert.equal(fetch.mock.calls[0].arguments[0], `${API_BASE_URL}/api/blogs`);
+  assert.ok(fetch.mock.calls[0].arguments[1].signal instanceof AbortSignal);
   assert.equal(result.ok, true);
   assert.equal(result.error, null);
   assert.equal(result.headers, headers);
@@ -48,7 +49,7 @@ test('JSON GET responses retain status, headers and data with one lazy parse', a
   assert.equal(text.mock.callCount(), 1);
 });
 
-test('write methods, JSON bodies, credential fields, headers and signals pass through unchanged without retry', async t => {
+test('write methods, JSON bodies, credential fields, headers and signals preserve caller cancellation without retry', async t => {
   const fetch = t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 201 }));
   for (const [path, method, body] of [
     ['/api/contact', 'POST', { name: 'Reader', email: 'reader@example.invalid', message: 'Hello' }],
@@ -67,7 +68,8 @@ test('write methods, JSON bodies, credential fields, headers and signals pass th
     await apiRequest(path, options);
     const call = fetch.mock.calls.at(-1);
     assert.equal(call.arguments[0], `${API_BASE_URL}${path}`);
-    assert.equal(call.arguments[1], options);
+    assert.deepEqual({ ...call.arguments[1], signal: options.signal }, options);
+    assert.ok(call.arguments[1].signal instanceof AbortSignal);
   }
   assert.equal(fetch.mock.callCount(), 10);
 });

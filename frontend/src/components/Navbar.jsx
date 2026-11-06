@@ -1,3 +1,4 @@
+import { logout } from '../lib/session';
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, UserCircle, LogOut } from 'lucide-react';
@@ -12,10 +13,14 @@ const Navbar = () => {
   const loggedInUser = readStoredUser();
   const isAuthenticated = !!loggedInUser;
 
-  const handleLogout = () => {
-    localStorage.removeItem('cyberUser');
-    navigate('/'); 
-    window.location.reload(); 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      window.alert('Signed out locally, but the server session could not be revoked.');
+    }
+    navigate('/');
+    setIsOpen(false);
   };
 
   return (

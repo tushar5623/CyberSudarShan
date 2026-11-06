@@ -14,7 +14,7 @@ const EmailBreachChecker = () => {
     setResult(null);
 
     try {
-      const response = await apiRequest(`/api/breach/${email}`);
+      const response = await apiRequest(`/api/breach/${encodeURIComponent(email)}`);
 
       if (response.ok) {
         const data = await response.json();

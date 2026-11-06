@@ -1,5 +1,9 @@
 # Task 3: integration readiness verification (2026-10-25)
 
+> **Historical record:** Sessions, authenticated chat, bounded pagination, frontend
+> configuration, CI, and validation changed in November 2026. Use the
+> [current quality review](quality-review.md) for present behavior and results.
+
 Security Hardening Task 1 subsequently restricts CORS to explicitly configured
 origins and redacts parser errors. Its [contract amendments](api-contracts.md)
 supersede the historical wildcard-CORS/HTML-error observations in this report.

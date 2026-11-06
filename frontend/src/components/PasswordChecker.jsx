@@ -21,7 +21,7 @@ const PasswordChecker = () => {
       case 1: return { label: 'Weak ⚠️', color: 'bg-orange-500', width: 'w-2/4', textColor: 'text-orange-500' };
       case 2: return { label: 'Moderate 🟡', color: 'bg-yellow-400', width: 'w-3/4', textColor: 'text-yellow-400' };
       case 3: return { label: 'Strong ✅', color: 'bg-green-500', width: 'w-full', textColor: 'text-green-500' };
-      case 4: return { label: 'Unbreakable 🛡️', color: 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.8)]', width: 'w-full', textColor: 'text-yellow-400' };
+      case 4: return { label: 'Strong (estimate) 🛡️', color: 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.8)]', width: 'w-full', textColor: 'text-yellow-400' };
       default: return { label: '', color: 'bg-transparent', width: 'w-0', textColor: '' };
     }
   };
@@ -41,12 +41,12 @@ const PasswordChecker = () => {
             {/* 🔥 MOBILE FIX: Heading size text-2xl on mobile */}
             <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tight">Password <span className="text-yellow-500">Checker</span></h2>
           </div>
-          <p className="text-slate-400 text-sm md:text-lg px-2">Test the strength of your password against cyber threats.</p>
+          <p className="text-slate-400 text-sm md:text-lg px-2">Local estimate only; no password is guaranteed safe. Do not enter a real password.</p>
         </div>
 
         <div className="max-w-md mx-auto relative">
           <input
-            type="text"
+            type="password" autoComplete="off" aria-label="Password to evaluate"
             placeholder="Type your password here..."
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -67,7 +67,7 @@ const PasswordChecker = () => {
               {score < 4 && (
                 // 🔥 MOBILE FIX: Suggestions box ki padding thodi kam ki
                 <div className="mt-5 md:mt-6 p-4 md:p-5 bg-slate-950/80 rounded-xl border border-slate-800 text-xs md:text-sm text-slate-400">
-                  <p className="font-semibold text-slate-300 mb-2">💡 How to make it Unbreakable:</p>
+                  <p className="font-semibold text-slate-300 mb-2">💡 Ways to improve your password:</p>
                   <ul className="list-disc pl-5 space-y-1 md:space-y-1.5">
                     {password.length <= 7 && <li>Use at least 8 characters.</li>}
                     {!/[A-Z]/.test(password) && <li>Add at least one uppercase letter (A-Z).</li>}

@@ -1,9 +1,12 @@
-// Preserve the existing backend in both development and deployed builds.
-const DEFAULT_API_BASE_URL = 'https://cyber-sudarshan-backend-1.onrender.com';
+// Development must never send local test data to a deployed service.
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:5000';
 
 export function resolveApiBaseUrl(value, { production = false } = {}) {
-  const configured = value === undefined ? DEFAULT_API_BASE_URL : value;
-  const invalid = () => new Error('VITE_API_BASE_URL must be an absolute HTTP(S) origin without credentials, path, query or fragment. Production requires HTTPS.');
+  const configured = value === undefined && !production ? DEFAULT_API_BASE_URL : value;
+  const invalid = () =>
+    new Error(
+      'VITE_API_BASE_URL must be an absolute HTTP(S) origin without credentials, path, query or fragment. Production requires HTTPS.'
+    );
   if (typeof configured !== 'string' || !configured.trim()) throw invalid();
   if (!/^https?:\/\/[^/?#\\\s]+\/?$/i.test(configured.trim())) throw invalid();
   let url;
@@ -12,9 +15,16 @@ export function resolveApiBaseUrl(value, { production = false } = {}) {
   } catch {
     throw invalid();
   }
-  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password ||
-      url.pathname !== '/' || url.search || url.hash ||
-      (production && url.protocol !== 'https:')) throw invalid();
+  if (
+    !['https:', 'http:'].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash ||
+    (production && url.protocol !== 'https:')
+  )
+    throw invalid();
   return url.origin;
 }
 
@@ -33,10 +43,14 @@ export function apiUrl(path) {
 // HTTP failures remain explicit response results so each existing UI can retain
 // its status/body policy. Network and JSON errors reject without being replaced.
 export async function apiRequest(path, options) {
-  const response = await fetch(apiUrl(path), options);
-  const error = response.ok ? null : Object.assign(new Error('API request failed.'), {
-    status: response.status
-  });
+  const deadline = AbortSignal.timeout(15000);
+  const signal = options?.signal ? AbortSignal.any([options.signal, deadline]) : deadline;
+  const response = await fetch(apiUrl(path), { ...options, signal });
+  const error = response.ok
+    ? null
+    : Object.assign(new Error('API request failed.'), {
+        status: response.status
+      });
   let parsed;
   return {
     ok: response.ok,
@@ -45,7 +59,7 @@ export async function apiRequest(path, options) {
     error,
     json() {
       // Lazy parsing preserves callers that only inspect status or ignore bodies.
-      parsed ??= response.text().then(text => {
+      parsed ??= response.text().then((text) => {
         const data = text === '' && [204, 205].includes(response.status) ? null : JSON.parse(text);
         if (error) error.body = data;
         return data;

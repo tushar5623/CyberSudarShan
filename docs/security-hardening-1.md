@@ -1,5 +1,10 @@
 # Security Hardening Task 1
 
+> **Historical record:** The unresolved session, chat attribution, bcrypt-length,
+> enumeration, validation, and lifecycle findings below were addressed or re-scoped
+> by the November 2026 [quality review](quality-review.md). This file preserves the
+> earlier evidence and should not be read as the current implementation contract.
+
 ## Scope, findings and evidence
 
 Inspected current auth/password handling, blog/news authorization, chat identity,

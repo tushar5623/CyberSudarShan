@@ -1,17 +1,15 @@
 import { useDialog } from '../hooks/useDialog';
 import { useTimeout } from '../hooks/useTimeout';
 import { apiRequest } from '../lib/api';
-import { subscribeToApi } from '../lib/apiSubscription';
-import React, { useState, useEffect, useRef } from 'react';
+import { usePaginatedFeed } from '../hooks/usePaginatedFeed';
+import React, { useState, useRef } from 'react';
 import { Zap, ChevronRight, ChevronLeft, Clock, X, CheckCircle, AlertCircle, PlusCircle, Newspaper } from 'lucide-react';
 
 const CyberNews = () => {
-  const [newsList, setNewsList] = useState([]);
+  const { items: newsList, loading: newsLoading, error: loadError, hasMore, loadMore, refresh } = usePaginatedFeed('/api/news');
   const [selectedNews, setSelectedNews] = useState(null);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [newsLoading, setNewsLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
 
   // 🔥 NAYA: Slider ko left-right scroll karne ke liye Ref
   const sliderRef = useRef(null);
@@ -29,26 +27,6 @@ const CyberNews = () => {
     setToast({ show: true, message, type });
     scheduleToast(() => setToast({ show: false, message: '', type: 'success' }), 3000);
   };
-
-  useEffect(() => {
-    const subscription = subscribeToApi('/api/news', {
-      onData: (data, response) => {
-        setNewsLoading(false);
-        if (response.ok && Array.isArray(data)) {
-          setNewsList(data);
-          setLoadError('');
-        } else {
-          setLoadError('Failed to load news. Please try again later.');
-        }
-      },
-      onError: () => {
-        setNewsLoading(false);
-        setLoadError('Failed to load news. Please try again later.');
-        console.error("Failed to load news.");
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -123,6 +101,8 @@ const CyberNews = () => {
           </div>
 
           {/* 🔥 AMAZON-STYLE SLIDER CONTAINER 🔥 */}
+          {hasMore && <button type="button" disabled={newsLoading} onClick={loadMore} className="text-yellow-500">Load more news</button>}
+          {loadError && <button type="button" onClick={refresh} className="text-yellow-500">Retry</button>}
           {loadError ? <p role="alert" className="py-10 text-center text-red-400">{loadError}</p>
             : newsLoading ? <p role="status" className="py-10 text-center text-slate-400">Loading news...</p>
             : newsList.length === 0 ? (

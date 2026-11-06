@@ -1,4 +1,9 @@
-# API contract baseline before structural migration
+# Historical API contract baseline before structural migration
+
+> **Historical record:** The authentication, chat, validation, pagination, health,
+> and error contracts in this document were superseded by the November 2026 quality
+> review. Use the [root README](../README.md) and [current review](quality-review.md)
+> for current behavior. The remainder is retained as migration history.
 
 ## Security Hardening Task 1 amendments
 

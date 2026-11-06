@@ -1,0 +1,20 @@
+{
+  "name": "cyber-sudarshan-project",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22.19.0 <23"
+  },
+  "scripts": {
+    "setup": "npm --prefix backend ci && npm --prefix frontend ci",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "build": "npm --prefix frontend run build",
+    "check": "npm run format:check && npm run lint && npm test && npm run build",
+    "format": "prettier --write \"backend/src/**/*.js\" \"backend/test/**/*.js\" \"backend/*.js\" \"backend/*.cjs\" \"frontend/src/lib/*.js\" \"frontend/src/hooks/*.js\"",
+    "format:check": "prettier --check \"backend/src/**/*.js\" \"backend/test/**/*.js\" \"backend/*.js\" \"backend/*.cjs\" \"frontend/src/lib/*.js\" \"frontend/src/hooks/*.js\""
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}

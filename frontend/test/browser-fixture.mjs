@@ -31,9 +31,9 @@ const server = await createServer({
           if (scenarios.includes(url.searchParams.get('scenario'))) scenario = url.searchParams.get('scenario');
           const requestedMember = url.searchParams.get('member');
           const member = ['valid', 'malformed', 'clear'].includes(requestedMember) ? requestedMember : null;
-          const storage = member === 'valid' ? "localStorage.setItem('cyberUser',JSON.stringify({name:'Fixture Member',email:'member@example.invalid'}));"
-            : member === 'malformed' ? "localStorage.setItem('cyberUser','{bad-json');"
-              : member === 'clear' ? "localStorage.removeItem('cyberUser');" : '';
+          const storage = member === 'valid' ? "sessionStorage.setItem('cyberSession',JSON.stringify({token:'a'.repeat(64),user:{id:'fixture-member',name:'Fixture Member',email:'member@example.invalid'}}));"
+            : member === 'malformed' ? "sessionStorage.setItem('cyberSession','{bad-json');"
+              : member === 'clear' ? "sessionStorage.removeItem('cyberSession');" : '';
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end(`<h1>Local browser fixture</h1><p>Scenario: ${scenario}</p><p>Member action: ${member || 'none'}</p>
             <nav>${scenarios.map(mode => `<p><a href="/__fixture?scenario=${mode}">${mode}</a></p>`).join('')}</nav>
@@ -64,7 +64,7 @@ const server = await createServer({
           }
           if (scenario === 'chat-network') return res.destroy();
           if (scenario === 'chat-fail') return json(res, 500, { success: false, message: 'Server error' });
-          messages = [...messages, { _id: `saved-${sequence++}`, sender: body.sender,
+          messages = [...messages, { _id: `saved-${sequence++}`, sender: 'Fixture Member', userId: 'fixture-member',
             message: body.message, timestamp: new Date().toISOString() }];
           return json(res, 201, { success: true, message: 'Message sent!' });
         }
@@ -82,10 +82,12 @@ const server = await createServer({
             scenario === 'breach-timeout' ? 504 : 502, { error: 'Breach lookup unavailable. Please try again later.' });
           return json(res, 200, scenario === 'breach-detected' ? { safe: false, breaches: ['Fixture breach'] } : { safe: true });
         }
+        if (url.pathname === '/api/auth/logout') { res.writeHead(204); return res.end(); }
         if (url.pathname.startsWith('/api/auth/')) {
+          res.setHeader('X-Session-Token', 'a'.repeat(64));
           if (scenario === 'auth-error') return json(res, 400, { success: false, message: 'Invalid credentials!' });
           return json(res, url.pathname.endsWith('signup') ? 201 : 200, {
-            success: true, message: 'Fixture success', user: { name: body.name || 'Fixture Member', email: body.email }
+            success: true, message: 'Fixture success', user: { id: 'fixture-member', name: body.name || 'Fixture Member', email: body.email }
           });
         }
         if (url.pathname === '/api/verify-admin') return json(res, 200, { success: body.password === 'fixture-admin' });

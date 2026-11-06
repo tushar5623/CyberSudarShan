@@ -1,4 +1,5 @@
-const focusable = 'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const focusable =
+  'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function activateDialog(dialog, onClose) {
   const doc = dialog.ownerDocument;
@@ -18,8 +19,10 @@ export function activateDialog(dialog, onClose) {
     branch = parent;
   }
   doc.body.style.overflow = 'hidden';
-  const controls = () => [...dialog.querySelectorAll(focusable)].filter(element =>
-    element.getClientRects().length > 0 && !element.hidden);
+  const controls = () =>
+    [...dialog.querySelectorAll(focusable)].filter(
+      (element) => element.getClientRects().length > 0 && !element.hidden
+    );
   const initial = dialog.querySelector('[data-dialog-initial-focus]') ?? controls()[0] ?? dialog;
   initial.focus({ preventScroll: true });
 
@@ -32,9 +35,12 @@ export function activateDialog(dialog, onClose) {
       const items = controls();
       const first = items[0] ?? dialog;
       const last = items.at(-1) ?? dialog;
-      if (!items.length || !dialog.contains(doc.activeElement) ||
-          (event.shiftKey ? doc.activeElement === first : doc.activeElement === last) ||
-          doc.activeElement === dialog) {
+      if (
+        !items.length ||
+        !dialog.contains(doc.activeElement) ||
+        (event.shiftKey ? doc.activeElement === first : doc.activeElement === last) ||
+        doc.activeElement === dialog
+      ) {
         event.preventDefault();
         (event.shiftKey ? last : first).focus();
       }

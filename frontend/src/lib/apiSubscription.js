@@ -33,7 +33,12 @@ export function subscribeToApi(path, { onData, onError, intervalMs }) {
     return pending;
   }
 
-  const timer = intervalMs === undefined ? null : setInterval(() => { load(); }, intervalMs);
+  const timer =
+    intervalMs === undefined
+      ? null
+      : setInterval(() => {
+          load();
+        }, intervalMs);
   load();
   return {
     // A post-write refresh waits for any older read, then fetches a fresh snapshot.

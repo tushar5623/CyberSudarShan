@@ -1,14 +1,14 @@
+import { usePaginatedFeed } from '../hooks/usePaginatedFeed';
 import { useDialog } from '../hooks/useDialog';
 import { useTimeout } from '../hooks/useTimeout';
 import { apiRequest } from '../lib/api';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { User, PenTool, Send, Lock, Unlock, X, ShieldCheck, LogOut, AlertCircle, ArrowLeft, Trash2, Edit3, CheckCircle } from 'lucide-react';
 
 const Blogs = () => {
-  const [blogs, setBlogs] = useState([]);
+  const { items: blogs, error, hasMore, loading: feedLoading, loadMore, refresh: fetchBlogs } = usePaginatedFeed('/api/blogs');
   const [formData, setFormData] = useState({ title: '', author: '', content: '' });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const [editingBlogId, setEditingBlogId] = useState(null);
   const [blogToDelete, setBlogToDelete] = useState(null); 
@@ -24,6 +24,11 @@ const Blogs = () => {
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const scheduleToast = useTimeout();
+  const closeLoginModal = () => {
+    setShowLoginModal(false);
+    setLoginError('');
+    setInputPassword('');
+  };
   const loginDialog = useDialog(showLoginModal, () => closeLoginModal());
   const logoutDialog = useDialog(showLogoutModal, () => setShowLogoutModal(false));
   const deleteDialog = useDialog(Boolean(blogToDelete), () => setBlogToDelete(null));
@@ -34,23 +39,6 @@ const Blogs = () => {
       setToast({ show: false, message: '', type: 'success' });
     }, 3000); 
   };
-
-  const fetchBlogs = async () => {
-    try {
-      const res = await apiRequest('/api/blogs');
-      if (!res.ok) throw new Error('Server error');
-      const data = await res.json();
-      setBlogs(Array.isArray(data) ? data : []);
-      setError(null);
-    } catch (error) {
-      console.error("Error fetching blogs:", error);
-      setError("Failed to load blogs.");
-    }
-  };
-
-  useEffect(() => {
-    fetchBlogs();
-  }, []);
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -77,11 +65,7 @@ const Blogs = () => {
     }
   };
 
-  const closeLoginModal = () => {
-    setShowLoginModal(false);
-    setLoginError('');
-    setInputPassword('');
-  };
+
 
   const confirmLogout = () => {
     setIsAdmin(false);
@@ -303,6 +287,8 @@ const Blogs = () => {
 
             {/* Blogs List */}
             <div className={isAdmin ? "md:col-span-2" : "md:col-span-3"}>
+              {hasMore && <button type="button" disabled={feedLoading} onClick={loadMore} className="mb-4 text-yellow-500">{feedLoading ? 'Loading...' : 'Load more blogs'}</button>}
+              {error && <button type="button" onClick={fetchBlogs} className="mb-4 text-yellow-500">Retry</button>}
               {error && <p role="alert" className="mb-4 text-red-400 text-sm md:text-base">{error}</p>}
               <div className="grid gap-5 md:gap-6">
                 {blogs && blogs.length === 0 ? (
