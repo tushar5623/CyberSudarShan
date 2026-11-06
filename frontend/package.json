@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.18",
-    "@tsparticles/react": "^3.0.0",
+    "@tsparticles/react": "^4.5.1",
     "@tsparticles/slim": "^3.9.1",
     "aos": "^2.3.4",
     "cyber-sudarshan-project": "file:..",
