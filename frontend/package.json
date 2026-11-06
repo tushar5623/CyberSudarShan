@@ -17,13 +17,13 @@
     "aos": "^2.3.4",
     "cyber-sudarshan-project": "file:..",
     "lucide-react": "^0.574.0",
-    "react": "^19.2.0",
+    "react": "^19.3.1",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/react": "^19.2.7",
+    "@types/react": "^19.3.0",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.24",
